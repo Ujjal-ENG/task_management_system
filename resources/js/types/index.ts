@@ -91,3 +91,10 @@ export type ApiResponse<T> = {
     error?: string;
     errors?: Record<string, string[]>;
 };
+
+export interface TaskFilters {
+    status?: string;
+    due_date_start?: string;
+    due_date_end?: string;
+    search?: string;
+}
