@@ -257,18 +257,6 @@ class TaskService
         }
     }
 
-    /**
-     * Get task activities
-     *
-     * @param int $taskId
-     * @param int $userId
-     * @return array
-     */
-    public function getTaskActivities(int $taskId, int $userId): array
-    {
-        $task = Task::query()->where('id', $taskId)->where('user_id', $userId)->firstOrFail();
-        return $task->activities()->with('user:id,name')->orderBy('created_at', 'desc')->get()->toArray();
-    }
 
     /**
      * Get task statistics
@@ -322,19 +310,6 @@ class TaskService
         Cache::put($cacheKey, $stats, now()->addHour());
 
         return $stats;
-    }
-
-    /**
-     * Get tasks for export
-     *
-     * @param int $userId
-     * @return \Illuminate\Database\Eloquent\Collection
-     */
-    public function getTasksForExport(int $userId): Collection
-    {
-        return Task::query()->where('user_id', $userId)
-            ->orderBy('created_at', 'desc')
-            ->get(['id', 'title', 'description', 'status', 'priority', 'due_date', 'completed_at', 'created_at', 'updated_at']);
     }
 
     /**

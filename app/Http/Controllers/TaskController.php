@@ -193,51 +193,8 @@ class TaskController extends Controller
 
     public function statistics(Request $request): JsonResponse
     {
-        $user = request()->user();
-
-//        check cache
-        $cacheKey = 'tasks_'.$user->id;
-        if(Cache::has($cacheKey)){
-            return response()->json(['success' => true, 'data' => Cache::get($cacheKey)]);
-        }
-
-//        count task by status
-        $taskByStatus = Task::query()->where('user_id',$user->id)
-            ->select('status',DB::raw('count(*) as count'))
-            ->groupBy('status')
-            ->get()
-            ->pluck('count','status')
-            ->toArray();
-
-//        task due soon
-        $dueThisWeek = Task::query()->where('user_id',$user->id)
-            ->where('status' ,'!=', 'completed')
-            ->whereBetween('due_date', [now(), now()->addDays(7)])
-            ->count();
-
-        // Overdue tasks
-        $overdue = Task::query()->where('user_id', $user->id)
-            ->where('status', '!=', 'completed')
-            ->where('due_date', '<', now())
-            ->count();
-
-        // Recently completed
-        $recentlyCompleted = Task::query()->where('user_id', $user->id)
-            ->where('status', 'completed')
-            ->where('completed_at', '>=', now()->subDays(7))
-            ->count();
-
-        $stats = [
-            'total' => array_sum($taskByStatus),
-            'by_status' => $taskByStatus,
-            'due_this_week' => $dueThisWeek,
-            'overdue' => $overdue,
-            'recently_completed' => $recentlyCompleted,
-        ];
-
-        // Cache for 1 hour
-        Cache::put($cacheKey, $stats, now()->addHour());
-
+        $user = $request->user();
+        $stats = $this->taskService->getTaskStatistics($user->id);
         return response()->json($stats);
     }
 
@@ -286,22 +243,5 @@ class TaskController extends Controller
 
         return response()->stream($callback, 200, $headers);
     }
-    /**
-     * Clear user's task cache
-     * @param $userId
-     * @return void
-     */
-    private function clearUserTasksCache($userId): void
-    {
-        // Clear statistics cache
-        Cache::forget('task_stats_' . $userId);
 
-        // Find and clear all tasks list caches for this user
-        $cacheKeys = Cache::get('user_' . $userId . '_cache_keys', []);
-        foreach ($cacheKeys as $key) {
-            if (strpos($key, 'tasks_' . $userId . '_') === 0) {
-                Cache::forget($key);
-            }
-        }
-    }
 }
