@@ -7,6 +7,7 @@ use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
 use App\Models\TaskActivity;
 use App\Services\TaskService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -54,7 +55,6 @@ class TaskController extends Controller
     {
         $user = $request->user();
 
-
         $tasks = $this->taskService->getTasks($user->id, $request->all());
 
         return response()->json(['success' => true, 'data' => $tasks]);
@@ -93,18 +93,20 @@ class TaskController extends Controller
      * @param $id
      * @return JsonResponse
      */
-    public function show(Request $request, $id): JsonResponse
-    {
-        $user = request()->user();
-        try {
-            $task = $this->taskService->getTask($id,$user->id);
-            return response()->json(['success' => true, 'data' => $task]);
-        }catch (Exception $exception){
-            return response()->json(['error' => 'Failed to Get Task '.$exception->getMessage()], 422);
-        }
-
-
-    }
+//    public function show($id): JsonResponse
+//    {
+//
+//        $user = request()->user();
+//        $taskId = (int) $id;
+//        try {
+//            $task = $this->taskService->getTask($taskId,$user->id);
+//            return response()->json(['success' => true, 'data' => $task]);
+//        }catch (Exception $exception){
+//            return response()->json(['error' => 'Failed to Get Task '.$exception->getMessage()], 422);
+//        }
+//
+//
+//    }
 
     /**
      * Show the form for editing the specified resource.
@@ -208,10 +210,9 @@ class TaskController extends Controller
      * @param Request $request
      * @return StreamedResponse
      */
-    public function export(Request $request): StreamedResponse
+    public function export(Request $request)
     {
         $user = $request->user();
-
         $tasks = Task::query()->where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
             ->get(['id', 'title', 'description', 'status', 'priority', 'due_date', 'completed_at', 'created_at', 'updated_at']);
@@ -236,10 +237,10 @@ class TaskController extends Controller
                     $task->description,
                     $task->status,
                     $task->priority,
-                    $task->due_date ? $task->due_date->format('Y-m-d H:i:s') : null,
-                    $task->completed_at ? $task->completed_at->format('Y-m-d H:i:s') : null,
-                    $task->created_at->format('Y-m-d H:i:s'),
-                    $task->updated_at->format('Y-m-d H:i:s'),
+                    $task->due_date ? Carbon::parse($task->due_date)->format('Y-m-d H:i:s') : null,
+                    $task->completed_at ? Carbon::parse($task->completed_at)->format('Y-m-d H:i:s') : null,
+                    Carbon::parse($task->created_at)->format('Y-m-d H:i:s'),
+                    Carbon::parse($task->updated_at)->format('Y-m-d H:i:s'),
                 ]);
             }
 

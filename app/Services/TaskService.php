@@ -74,6 +74,7 @@ class TaskService
      */
     public function getTask(int $taskId, int $userId): Task
     {
+
         return Task::query()->where('id', $taskId)->where('user_id', $userId)->firstOrFail();
     }
 
