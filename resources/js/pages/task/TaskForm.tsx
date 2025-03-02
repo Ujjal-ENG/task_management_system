@@ -102,7 +102,7 @@ function TaskForm() {
             };
 
             // Send request to API
-            const response = await axios.post('/tasks',  JSON.stringify(apiData));
+            const response = await axios.post('/tasks',apiData);
 
             if (!response.ok) {
                 const errorData = await response.json();

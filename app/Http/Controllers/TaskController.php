@@ -95,9 +95,6 @@ class TaskController extends Controller
     {
         $validated = $request->validated();
 
-        if ($validated->fails()) {
-            return response()->json(['errors' => $validated->errors()], 422);
-        }
 
         try {
             DB::beginTransaction();
