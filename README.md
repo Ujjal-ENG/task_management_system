@@ -1,4 +1,4 @@
-# Task Management System - Backend (Laravel)
+# Task Management System
 
 This project is a Task Management System developed as part of an enhanced lab test for a Full Stack Developer position. The backend is built using Laravel 12, while the frontend was intended to be developed using ReactJS. However, due to some challenges with the Laravel + React starter kit, the frontend is not yet completed. This repository contains the fully functional backend, including RESTful APIs, authentication, and database management.
 
@@ -70,13 +70,13 @@ The project follows the standard Laravel directory structure with some additiona
   - HTTPS with CSRF tokens.
   - Sensitive information stored in environment variables.
 
-### Frontend Features (Planned but Not Completed)
+### Frontend Features 
 
 - User authentication (Login/Signup pages).
 - Dashboard to display tasks with filtering options.
 - Task creation, editing, and deletion forms with validation.
 - Drag-and-drop functionality for reordering tasks.
-- Real-time updates using WebSocket or polling.
+- Real-time updates using WebSocket or polling.(Not Done yet)
 - Dark mode support.
 
 ## Installation
