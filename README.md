@@ -23,7 +23,7 @@ This project is a Task Management System developed as part of an enhanced lab te
 
 - **Backend:** Laravel 12
 - **Database:** MySQL
-- **Frontend:** ReactJS *(not completed due to issues with Laravel + React starter kit)*
+- **Frontend:** ReactJS
 - **Other Tools:**
   - Redis (for caching)
   - Composer (for dependency management)
