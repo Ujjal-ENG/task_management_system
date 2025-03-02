@@ -11,6 +11,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/user', [UserController::class, 'profile']);
 
     // Task routes
+    Route::get('/task-dashboard', [TaskController::class, 'taskIndex']);
+    Route::get('/task/TaskForm', [TaskController::class, 'create'])->name('create-task');
     Route::get('/tasks', [TaskController::class, 'index']);
     Route::post('/tasks', [TaskController::class, 'store']);
     Route::get('/tasks/{id}', [TaskController::class, 'show']);

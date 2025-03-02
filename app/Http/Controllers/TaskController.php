@@ -11,11 +11,22 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Inertia\Inertia;
+use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 
 class TaskController extends Controller
 {
+
+
+    /**
+     * @return Response
+     */
+    public function taskIndex(): Response
+    {
+        return Inertia::render('task/task');
+    }
     /**
      * Display a listing of the resource.
      * @param Request $request
@@ -74,7 +85,7 @@ class TaskController extends Controller
      */
     public function create()
     {
-        //
+        return Inertia::render('task/TaskForm');
     }
 
     /**
