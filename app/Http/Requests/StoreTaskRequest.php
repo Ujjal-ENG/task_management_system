@@ -21,7 +21,6 @@ class StoreTaskRequest extends FormRequest
      */
     public function rules(): array
     {
-        $this->dd(123456);
         return [
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',

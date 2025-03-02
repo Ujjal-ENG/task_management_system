@@ -1,6 +1,7 @@
 import React, { useState, FormEvent } from 'react';
 import { format } from 'date-fns';
 import { CalendarIcon, Loader2 } from 'lucide-react';
+import axios from 'axios';
 
 // Import shadcn components
 import { Button } from '@/components/ui/button';
@@ -101,16 +102,11 @@ function TaskForm() {
             };
 
             // Send request to API
-            const response = await fetch('/tasks', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(apiData),
-            });
+            const response = await axios.post('/tasks',  JSON.stringify(apiData));
 
             if (!response.ok) {
                 const errorData = await response.json();
+                console.log(errorData)
                 throw new Error(errorData.error || 'Failed to create task');
             }
 
