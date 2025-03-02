@@ -70,6 +70,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
             );
 
             const response = await axios.get('/tasks', { params });
+            console.log(response.data);
             setTasks(response.data.data);
             setError(null);
         } catch (err) {

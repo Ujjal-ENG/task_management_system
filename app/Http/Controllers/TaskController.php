@@ -6,19 +6,34 @@ use App\Models\Task;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
 use App\Models\TaskActivity;
+use App\Services\TaskService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
+use Mockery\Exception;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 
 class TaskController extends Controller
 {
 
+
+    protected $taskService;
+
+    /**
+     * TaskController constructor.
+     *
+     * @param TaskService $taskService
+     */
+    public function __construct(TaskService $taskService)
+    {
+        $this->taskService = $taskService;
+    }
 
     /**
      * @return Response
@@ -27,63 +42,27 @@ class TaskController extends Controller
     {
         return Inertia::render('task/task');
     }
+
     /**
      * Display a listing of the resource.
+     *
      * @param Request $request
-     * @return  JsonResponse
+     * @return JsonResponse
      */
     public function index(Request $request): JsonResponse
     {
-        $user = request()->user();
-        $query = Task::query();
-
-//        Filter by status
-        if($request->has('status')){
-            $query->where('status', $request->get('status'));
-        }
-
-//        Filter by due date
-        if($request->has('due_date_start') && $request->has('due_date_end')){
-            $query->whereBetween('due_date', [$request->get('due_date_start'), $request->get('due_date_end')]);
-        }elseif($request->has('due_date_start')){
-            $query->where('due_date', '>=', $request->get('due_date_start'));
-        }elseif($request->has('due_date_end')){
-            $query->where('due_date', '<=', $request->get('due_date_end'));
-        }
-
-//        search
-        if($request->has('search')){
-            $query->where(function ($query) use ($request) {
-                $query->where('title', 'like', '%' . $request->get('search') . '%')
-                    ->orWhere('description', 'like', '%' . $request->get('search') . '%');
-            });
-        }
-
-//        cache key based on query parameters
-        $cacheKey = 'tasks_'.$user->id.'_'.md5(json_encode(request()->all()));
-
-//        Return cached result if available
-        if (Cache::has($cacheKey)){
-            return response()->json(['success' => true, 'data' => Cache::get($cacheKey)]);
-        }
-
-//        order by
-        $query->orderBy('id', 'asc')
-            ->orderBy('priority', 'desc')
-            ->orderBy('created_at', 'desc');
-
-        $tasks = $query->get();
-
-//        cache the result for 5 minutes
-        Cache::put($cacheKey, $tasks, now()->addMinutes(5));
+        $user = $request->user();
+        $tasks = $this->taskService->getTasks($user->id, $request->all());
 
         return response()->json(['success' => true, 'data' => $tasks]);
     }
 
     /**
      * Show the form for creating a new resource.
+     *
+     * @return Response
      */
-    public function create()
+    public function create(): Response
     {
         return Inertia::render('task/TaskForm');
     }
@@ -91,47 +70,17 @@ class TaskController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(StoreTaskRequest $request)
+    public function store(StoreTaskRequest $request): Response
     {
         $validated = $request->validated();
 
-
+        $user = request()->user();
         try {
-            DB::beginTransaction();
-
-            $user = request()->user();
-
-//            Get max order for the user
-            $maxOrder = Task::query()->where('user_id', $user->id)->max('order') ?? 0;
-
-            $task = new Task([
-                'title' => $request->get('title'),
-                'description' => $request->get('description'),
-                'status' => $request->get('status') ?? 'pending',
-                'due_date' => $request->get('due_date'),
-                'priority' => $request->get('priority') ?? 0,
-                'order' => $maxOrder + 1,
-                'user_id' => $user->id
-            ]);
-            $task->save();
-
-//            Save Log Activity
-            TaskActivity::query()->create([
-                'task_id' => $task->id,
-                'user_id' => $user->id,
-                'action' => 'created',
-                'changes' => $task->toArray(),
-            ]);
-
-            DB::commit();
-
-//            clear cache for this user
-            $this->clearUserTasksCache($user->id);
-
-            return response()->json(['success' => true, 'data' => $task],201);
+            $task = $this->taskService->createTask($validated, $user->id);
+            return Inertia::render('task/task', ['success' => true, 'data' => $task]);
         }catch (\Exception $exception){
             DB::rollBack();
-            return response()->json(['error' => 'Failed to Create Task '.$exception->getMessage()], 422);
+            return Inertia::render('task/TaskForm');
         }
     }
 
@@ -144,10 +93,13 @@ class TaskController extends Controller
     public function show(Request $request, $id): JsonResponse
     {
         $user = request()->user();
+        try {
+            $task = $this->taskService->getTask($id,$user->id);
+            return response()->json(['success' => true, 'data' => $task]);
+        }catch (Exception $exception){
+            return response()->json(['error' => 'Failed to Get Task '.$exception->getMessage()], 422);
+        }
 
-        $task  = Task::query()->where('id', $id)->where('user_id', $user->id)->firstOrFail();
-
-        return response()->json(['success' => true, 'data' => $task]);
 
     }
 
@@ -168,45 +120,11 @@ class TaskController extends Controller
     public function update(UpdateTaskRequest $request, $id): JsonResponse
     {
         $validated = $request->validated();
-        if ($validated->fails()) {
-            return response()->json(['errors' => $validated->errors()], 422);
-        }
+        $user = request()->user();
 
         try {
-            DB::beginTransaction();
-
-            $user = request()->user();
-            $task = Task::query()->where('id', $id)->where('user_id', $user->id)->firstOrFail();
-
-            $oldData = $task->toArray();
-
-            // Set completed_at timestamp if status changed to completed
-            if ($request->has('status') && $request->status === 'completed' && $task->status !== 'completed') {
-                $task->completed_at = now();
-            }
-
-//            update task
-            $task->fill($request->only(['title', 'description', 'status', 'priority', 'due_date', 'order']));
-
-            $task->save();
-
-            // Log changes
-            $changes = array_diff_assoc($task->toArray(), $oldData);
-            if (!empty($changes)) {
-                TaskActivity::query()->create([
-                    'task_id' => $task->id,
-                    'user_id' => $user->id,
-                    'action' => 'updated',
-                    'changes' => $changes,
-                ]);
-            }
-
-            DB::commit();
-
-            $this->clearUserTasksCache($user->id);
-
+            $task = $this->taskService->updateTask($id, $validated, $user->id);
             return response()->json(['success' => true, 'data' => $task]);
-
         }catch (\Exception $exception){
             DB::rollBack();
             return response()->json(['error' => 'Failed to Update Task '.$exception->getMessage()], 422);
@@ -221,29 +139,9 @@ class TaskController extends Controller
      */
     public function destroy(Request $request, $id): JsonResponse
     {
+        $user = $request->user();
         try {
-            DB::beginTransaction();
-
-            $user = $request->user();
-            $task = Task::query()->where('id', $id)
-                ->where('user_id', $user->id)
-                ->firstOrFail();
-
-            // Log deletion
-            TaskActivity::query()->create([
-                'task_id' => $task->id,
-                'user_id' => $user->id,
-                'action' => 'deleted',
-                'changes' => ['deleted_at' => now()],
-            ]);
-
-            $task->delete();
-
-            DB::commit();
-
-            // Clear cache for this user
-            $this->clearUserTasksCache($user->id);
-
+            $this->taskService->deleteTask($id, $user->id);
             return response()->json(null, 204);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -257,49 +155,22 @@ class TaskController extends Controller
      */
     public function bulkUpdate(Request $request): JsonResponse
     {
+
         $validator = Validator::make($request->all(), [
-            'tasks' => 'required|array',
-            'tasks.*.id' => 'required|exists:tasks,id',
-            'tasks.*.order' => 'required|integer|min:0',
+            'task' => 'required|array',
+            'task.*taskId' => 'required|exists:tasks,id',
+            'task.*newOrder' => 'required|integer|min:0',
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            return response()->json(['error' => $validator->errors()], 422);
         }
 
+        $user = $request->user();
+
         try {
-            DB::beginTransaction();
-
-            $user = $request->user();
-
-            $updatedTasks = [];
-
-            foreach ($request->tasks as $taskData) {
-                $task = Task::query()->where('id', $taskData['id'])->where('user_id',$user->id)->first();
-                if ($task){
-                    $oldOrder = $task->order;
-                    $task->order = $taskData['order'];
-                    $task->save();
-
-                    if ($oldOrder !== $taskData['order']){
-                        TaskActivity::query()->create([
-                            'task_id' => $task->id,
-                            'user_id' => $user->id,
-                            'action' => 'reordered',
-                            'changes' => ['order' => ['from' => $oldOrder, 'to' => $taskData['order']]],
-                        ]);
-                    }
-                    $updatedTasks[] = $task->id;
-                }
-            }
-            DB::commit();
-
-
-            $this->clearUserTasksCache($user->id);
-
+           $updatedTasks = $this->taskService->bulkUpdateTasks($validator->validated(), $request['destination'], $user->id);
             return response()->json(['success' => true, 'data' => $updatedTasks]);
-
-
         }catch (\Exception $exception){
             DB::rollBack();
             return response()->json(['error' => 'Failed to Update Task '.$exception->getMessage()], 422);

@@ -1,8 +1,9 @@
 
 import AppLayout from '@/layouts/app-layout';
+
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import React, { useContext, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { TaskContext } from '@/contexts/TaskContext';
 import { Link } from '@inertiajs/react';
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
@@ -56,6 +57,8 @@ import {
 import { Task } from '@/types';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import axios from 'axios';
+import toast from 'react-hot-toast';
 
 interface TaskGroupProps {
     status: string;
@@ -179,18 +182,47 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function task() {
     const {
-        tasks,
-        loading,
         filters,
         setFilters,
         statistics,
         bulkUpdateTasks,
         deleteTask,
-        exportTasks
+        exportTasks,
     } = useContext(TaskContext);
 
+
+    const [tasks, setTasks] = useState([]);
+    const [loading, setLoading] = useState<boolean>(false);
+    const [error, setError] = useState<string | null>(null);
     const [showFilters, setShowFilters] = useState(false);
     const [defaultTab, setDefaultTab] = useState('all');
+    const fetchTasks = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const params = Object.fromEntries(
+                Object.entries(filters).filter(([_, value]) => value !== '' && value != null)
+            );
+
+            const response = await axios.get('/tasks', { params });
+            const { data } = response.data;
+
+            if (!Array.isArray(data)) {
+                throw new Error('Unexpected response structure');
+            }
+            setTasks(data);
+        } catch (err: any) {
+            console.error('Error fetching tasks:', err);
+            const message = err.response?.data?.message || 'Failed to fetch tasks';
+            setError(message);
+            toast.error(message);
+        } finally {
+            setLoading(false);
+        }
+    };
+    useEffect(() => {
+        fetchTasks();
+    }, []);
 
     const handleDragEnd = async (result: DropResult) => {
         const { source, destination, draggableId } = result;
@@ -221,9 +253,16 @@ export default function task() {
                     newOrder = (targetStatusTasks[destination.index - 1].order + targetStatusTasks[destination.index].order) / 2;
                 }
 
-                await bulkUpdateTasks([
-                    { id: taskId, order: newOrder }
-                ]);
+                try {
+                    const response = await axios.post('/tasks/bulk-update', {
+                        task, taskId, newOrder,source,destination
+                    });
+                    await fetchTasks();
+                    return response.data.data;
+                } catch (err: any) {
+                    toast.error(err.response?.data?.error || 'Failed to update task order');
+                    return null;
+                }
             }
         } else if (source.index !== destination.index) {
             // Reordering within the same status column
@@ -233,7 +272,6 @@ export default function task() {
 
             // Get the task being moved
             const taskId = parseInt(draggableId);
-
             // Calculate new order
             let newOrder;
             if (destination.index === 0) {
@@ -246,12 +284,18 @@ export default function task() {
                 newOrder = (beforeTask.order + afterTask.order) / 2;
             }
 
-            await bulkUpdateTasks([
-                { id: taskId, order: newOrder }
-            ]);
+            try {
+                const response = await axios.post('/tasks/bulk-update', {
+                    task, taskId, newOrder,source,destination
+                });
+                await fetchTasks();
+                return response.data.data;
+            } catch (err: any) {
+                toast.error(err.response?.data?.error || 'Failed to update task order');
+                return null;
+            }
         }
     };
-
     const handleDeleteTask = async (id: number) => {
         if (window.confirm('Are you sure you want to delete this task?')) {
             await deleteTask(id);
@@ -271,6 +315,8 @@ export default function task() {
         });
         setDefaultTab('all');
     };
+
+    console.log('TaskContext data: ',{tasks,loading,filters})
 
     const pendingTasks = tasks.filter(task => task.status === 'pending').sort((a, b) => a.order - b.order);
     const inProgressTasks = tasks.filter(task => task.status === 'in_progress').sort((a, b) => a.order - b.order);
@@ -344,30 +390,6 @@ export default function task() {
 
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Due Date From</label>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant={"outline"}
-                                                className={cn(
-                                                    "w-[240px] justify-start text-left font-normal",
-                                                    !date && "text-muted-foreground"
-                                                )}
-                                            >
-                                                <CalendarIcon />
-                                                {date ? format(date, "PPP") : <span>Pick a date</span>}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
-                                            <Calendar
-                                                mode="single"
-                                                value={filters.due_date_start ? new Date(filters.due_date_start) : undefined}
-                                                onChange={(date) => setFilters({
-                                                    ...filters,
-                                                    due_date_start: date ? format(date, 'yyyy-MM-dd') : ''
-                                                })}
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
                                     {/*<DatePicker*/}
                                     {/*    value={filters.due_date_start ? new Date(filters.due_date_start) : undefined}*/}
                                     {/*    onChange={(date) => setFilters({*/}
@@ -375,6 +397,33 @@ export default function task() {
                                     {/*        due_date_start: date ? format(date, 'yyyy-MM-dd') : ''*/}
                                     {/*    })}*/}
                                     {/*/>*/}
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                id="due-date-start"
+                                                className="w-full justify-start text-left font-normal"
+                                            >
+                                                {filters.due_date_start ? (
+                                                    format(new Date(filters.due_date_start), "PPP")
+                                                ) : (
+                                                    <span className="text-gray-400">Select a date</span>
+                                                )}
+                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar
+                                                mode="single"
+                                                selected={filters.due_date_start ? new Date(filters.due_date_start) : undefined}
+                                                onSelect={(date) => setFilters({
+                                                    ...filters,
+                                                    due_date_start: date ? format(date, 'yyyy-MM-dd') : ''
+                                                })}
+                                                initialFocus
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
 
                                 <div className="space-y-2">
@@ -386,6 +435,33 @@ export default function task() {
                                     {/*        due_date_end: date ? format(date, 'yyyy-MM-dd') : ''*/}
                                     {/*    })}*/}
                                     {/*/>*/}
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                id="due-date-start"
+                                                className="w-full justify-start text-left font-normal"
+                                            >
+                                                {filters.due_date_end ? (
+                                                    format(new Date(filters.due_date_end), "PPP")
+                                                ) : (
+                                                    <span className="text-gray-400">Select a date</span>
+                                                )}
+                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar
+                                                mode="single"
+                                                selected={filters.due_date_end ? new Date(filters.due_date_end) : undefined}
+                                                onSelect={(date) => setFilters({
+                                                    ...filters,
+                                                    due_date_end: date ? format(date, 'yyyy-MM-dd') : ''
+                                                })}
+                                                initialFocus
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
                             </div>
 

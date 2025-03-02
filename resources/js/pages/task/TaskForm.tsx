@@ -104,7 +104,7 @@ function TaskForm() {
             // Send request to API
             const response = await axios.post('/tasks',apiData);
 
-            if (!response.ok) {
+            if (!response?.data?.success) {
                 const errorData = await response.json();
                 console.log(errorData)
                 throw new Error(errorData.error || 'Failed to create task');
