@@ -7,6 +7,7 @@ use App\Models\TaskActivity;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class TaskService
 {
@@ -42,7 +43,7 @@ class TaskService
                     ->orWhere('description', 'like', '%' . $filters['search'] . '%');
             });
         }
-
+        $query->where('user_id','=',$userId);
         // cache key based on query parameters
         $cacheKey = 'tasks_' . $userId . '_' . md5(json_encode($filters));
 
@@ -182,6 +183,7 @@ class TaskService
      */
     public function deleteTask(int $taskId, int $userId): bool
     {
+
         try {
             DB::beginTransaction();
 
@@ -190,7 +192,7 @@ class TaskService
                 ->firstOrFail();
 
             // Log deletion
-            TaskActivity::query()->create([
+            TaskActivity::create([
                 'task_id' => $task->id,
                 'user_id' => $userId,
                 'action' => 'deleted',

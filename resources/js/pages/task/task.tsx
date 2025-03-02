@@ -298,7 +298,18 @@ export default function task() {
     };
     const handleDeleteTask = async (id: number) => {
         if (window.confirm('Are you sure you want to delete this task?')) {
-            await deleteTask(id);
+            setLoading(true);
+            try {
+                await axios.delete(`/tasks/${id}`);
+                await fetchTasks();
+                toast.success('Task deleted successfully');
+                return true;
+            } catch (err: any) {
+                toast.error(err.response?.data?.error || 'Failed to delete task');
+                return false;
+            } finally {
+                setLoading(false);
+            }
         }
     };
 
@@ -316,7 +327,7 @@ export default function task() {
         setDefaultTab('all');
     };
 
-    console.log('TaskContext data: ',{tasks,loading,filters})
+
 
     const pendingTasks = tasks.filter(task => task.status === 'pending').sort((a, b) => a.order - b.order);
     const inProgressTasks = tasks.filter(task => task.status === 'in_progress').sort((a, b) => a.order - b.order);
@@ -544,7 +555,7 @@ export default function task() {
 
                                             <div
                                                 className="flex items-center p-4 gap-2 border-t md:border-t-0 md:border-l bg-muted/40">
-                                                <Link to={`/tasks/${task.id}/edit`}>
+                                                <Link href={`tasks/${task.id}/edit`}>
                                                     <Button variant="outline" size="sm">
                                                         <Edit className="h-4 w-4 mr-1" />
                                                         Edit

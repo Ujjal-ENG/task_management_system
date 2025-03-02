@@ -104,11 +104,11 @@ function TaskForm() {
             // Send request to API
             const response = await axios.post('/tasks',apiData);
 
-            if (!response?.data?.success) {
-                const errorData = await response.json();
-                console.log(errorData)
-                throw new Error(errorData.error || 'Failed to create task');
-            }
+            // if (!response?.data?.success) {
+            //     const errorData = await response.json();
+            //     console.log(errorData)
+            //     throw new Error(errorData.error || 'Failed to create task');
+            // }
 
             // Reset form on success
             setFormData({

@@ -10,6 +10,7 @@ use App\Services\TaskService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -52,6 +53,8 @@ class TaskController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
+
+
         $tasks = $this->taskService->getTasks($user->id, $request->all());
 
         return response()->json(['success' => true, 'data' => $tasks]);
@@ -106,9 +109,11 @@ class TaskController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Task $task)
+    public function edit($id)
     {
-        //
+        $userID = Auth::user()->id;
+        $task = $this->taskService->getTask($id,$userID);
+        return Inertia::render('task/EditForm', ['task' => $task]);
     }
 
     /**
@@ -139,7 +144,7 @@ class TaskController extends Controller
      */
     public function destroy(Request $request, $id): JsonResponse
     {
-        $user = $request->user();
+        $user = Auth::user();
         try {
             $this->taskService->deleteTask($id, $user->id);
             return response()->json(null, 204);
