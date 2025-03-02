@@ -8,7 +8,7 @@ This project is a Task Management System developed as part of an enhanced lab te
 - [Project Structure](#project-structure)
 - [Features](#features)
   - [Backend Features](#backend-features)
-  - [Frontend Features (Planned but Not Completed)](#frontend-features-planned-but-not-completed)
+  - [Frontend Features ](#frontend-features)
 - [Installation](#installation)
   - [Quick Install Command](#quick-install-command)
 - [API Endpoints](#api-endpoints)
