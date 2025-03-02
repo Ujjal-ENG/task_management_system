@@ -93,4 +93,8 @@ Follow these steps to set up the project locally:
    php artisan migrate
    composer run dev
 ```bash
-
+**After drag and drop action, please run**
+```bash
+    php artisan optimize:clear
+ ```bash
+***than reload the system each time, this problem happend for react package***
