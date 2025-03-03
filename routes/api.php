@@ -1,6 +1,7 @@
 <?php
 
 
+use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\UserController;
@@ -30,5 +31,19 @@ Route::middleware('auth')->group(function () {
         Route::get('/roles', [RoleController::class, 'index']);
         Route::post('/roles/assign', [RoleController::class, 'assignRole']);
         Route::post('/roles/remove', [RoleController::class, 'removeRole']);
+    });
+
+    // Permission routes
+    Route::get('/permissions/check', [PermissionController::class, 'checkPermission']);
+
+    Route::get('/permissions/user/{userId}', [PermissionController::class, 'getUserPermissions']);
+
+    // Admin routes
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/users', [UserController::class, 'index']);
+        Route::get('/roles', [RoleController::class, 'index']);
+        Route::post('/roles/assign', [RoleController::class, 'assignRole']);
+        Route::post('/roles/remove', [RoleController::class, 'removeRole']);
+        Route::post('/permissions/initialize', [PermissionController::class, 'initializeTaskPermissions']);
     });
 });
