@@ -2,10 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { Head } from '@inertiajs/react';
 import axios from 'axios';
-// @ts-ignore
-import AdminLayout from '@/Layouts/AdminLayout';
-// @ts-ignore
-import UserPermissions from '@/Components/Admin/UserPermissions';
+
+import AdminLayout from '../../layouts/AdminLayout';
+import UserPermissions from "../admin/UserPermissions";
+import UserMangement from '../admin/UserManagement';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -79,6 +79,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ auth }) => {
                                         <div className="py-8 text-center">Loading users and roles...</div>
                                     ) : (
                                         <UserPermissions users={users} roles={roles} />
+                                    )}
+                                </CardContent>
+                                <CardContent>
+                                    {loading ? (
+                                        <div className="py-8 text-center">Loading users and roles...</div>
+                                    ) : (
+                                        <UserMangement users={users} roles={roles} />
                                     )}
                                 </CardContent>
                             </Card>
