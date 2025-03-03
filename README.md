@@ -91,6 +91,7 @@ Follow these steps to set up the project locally:
    cp .env.example .env
    php artisan key:generate
    php artisan migrate
+   php artisan db:seed --class=RoleSeeder
    composer run dev
 ```bash
 **After drag and drop action, please run**
